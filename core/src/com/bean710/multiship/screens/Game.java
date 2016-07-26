@@ -272,6 +272,15 @@ public class Game implements Screen {
 
 				}
 			}
+		}).on(("kickplayer"), new Emitter.Listener() {
+			
+			@Override
+			public void call(Object... args) {
+				String userid = (String) args[0];
+				if (userid.equals(id)) {
+					socket.disconnect();
+				}
+			}
 		});
 	}
 
