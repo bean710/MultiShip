@@ -281,6 +281,12 @@ public class Game implements Screen {
 					socket.disconnect();
 				}
 			}
+		}).on(Socket.EVENT_DISCONNECT, new Emitter.Listener() {
+			
+			@Override
+			public void call(Object... args) {
+				game.setScreen(new MainMenu(game));
+			}
 		});
 	}
 
