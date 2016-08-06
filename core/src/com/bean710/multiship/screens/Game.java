@@ -90,6 +90,21 @@ public class Game implements Screen {
 
 		batch.begin();
 
+		Iterator<Bullet> i = bullets.iterator();
+		if (!bullets.isEmpty()) {
+			Gdx.app.log("Bullet", "not emptey");
+			while (i.hasNext()) {
+				Bullet bullet = i.next();
+				if (bullet.getY() > 600) {
+					i.remove();
+				} else {
+					bullet.setPosition(bullet.getX(), bullet.getY() + 10);
+					Gdx.app.log("Bullet", bullets.size() + "");
+					bullet.draw(batch);
+				}
+			}
+		}
+
 		if (player != null) {
 			player.draw(batch);
 			if (player.hasMoved()) {
@@ -110,22 +125,6 @@ public class Game implements Screen {
 
 		for (HashMap.Entry<String, Starship> entry : friendlyPlayers.entrySet()) {
 			entry.getValue().draw(batch);
-		}
-
-		Iterator<Bullet> i = bullets.iterator();
-
-		if (!bullets.isEmpty()) {
-			Gdx.app.log("Bullet", "not emptey");
-			while (i.hasNext()) {
-				Bullet bullet = i.next();
-				if (bullet.getY() > 600) {
-					i.remove();
-				} else {
-					bullet.setPosition(bullet.getX(), bullet.getY() + 10);
-					Gdx.app.log("Bullet", bullets.size() + "");
-					bullet.draw(batch);
-				}
-			}
 		}
 
 		batch.end();
@@ -158,6 +157,9 @@ public class Game implements Screen {
 
 			public void call(Object... args) {
 				Gdx.app.log("SocketIO", "Connected to server");
+				
+				socket.emit("imagame");
+				
 				player = new Starship(playerShip);
 			}
 		}).on("socketID", new Emitter.Listener() {
