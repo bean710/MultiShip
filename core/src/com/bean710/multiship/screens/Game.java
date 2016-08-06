@@ -5,6 +5,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 
 import org.json.JSONArray;
+import org.json.JSONException;
 import org.json.JSONObject;
 
 import com.badlogic.gdx.Gdx;
@@ -33,6 +34,7 @@ public class Game implements Screen {
 	Texture friendlyShip;
 	HashMap<String, Starship> friendlyPlayers;
 	ArrayList<Bullet> bullets;
+	ArrayList<Bullet> friendlyBullets;
 
 	Vector2 prev;
 
@@ -67,7 +69,7 @@ public class Game implements Screen {
 				player.setPosition(player.getX() + (+200 * dt), player.getY());
 			}
 			if (Gdx.input.isKeyPressed(Input.Keys.SPACE)) {
-				if (System.currentTimeMillis() - lastShot > 1000) {
+				if (System.currentTimeMillis() - lastShot > 500) {
 					lastShot = System.currentTimeMillis();
 					shoot();
 				}
@@ -76,7 +78,7 @@ public class Game implements Screen {
 	}
 
 	public void shoot() {
-		Bullet tempBull = new Bullet(friendlyShip, 10);
+		Bullet tempBull = new Bullet(friendlyShip);
 		tempBull.setPosition(player.getX(), player.getY());
 		bullets.add(tempBull);
 	}
@@ -93,6 +95,7 @@ public class Game implements Screen {
 		Iterator<Bullet> i = bullets.iterator();
 		if (!bullets.isEmpty()) {
 			Gdx.app.log("Bullet", "not emptey");
+			JSONArray data = new JSONArray();
 			while (i.hasNext()) {
 				Bullet bullet = i.next();
 				if (bullet.getY() > 600) {
@@ -101,8 +104,24 @@ public class Game implements Screen {
 					bullet.setPosition(bullet.getX(), bullet.getY() + 10);
 					Gdx.app.log("Bullet", bullets.size() + "");
 					bullet.draw(batch);
+					JSONObject jo = new JSONObject();
+					try {
+						jo.put("sender", id);
+						jo.put("x", bullet.getX());
+						jo.put("y", bullet.getY());
+						data.put(jo);
+					} catch (JSONException e) {
+						e.printStackTrace();
+					}
 				}
 			}
+			socket.emit("bulletUpdate", data);
+		}
+		
+		Iterator<Bullet> j = friendlyBullets.iterator();
+		while (j.hasNext()) {
+			Bullet bullet = j.next();
+			bullet.draw(batch);
 		}
 
 		if (player != null) {
@@ -288,6 +307,30 @@ public class Game implements Screen {
 			@Override
 			public void call(Object... args) {
 				game.setScreen(new MainMenu(game));
+			}
+		}).on("bulletRefresh", new Emitter.Listener() {
+			
+			@Override
+			public void call(Object... args) {
+				JSONObject obj = (JSONObject) args[0];
+				
+				Iterator<?> keys = obj.keys();
+				while(keys.hasNext()) {
+					JSONArray ary = (JSONArray) keys.next();
+					
+					for (int i = 0; i < ary.length(); i++) {
+						try {
+							if (!ary.getJSONObject(i).getString("sender").equals(id)) {
+								Bullet temp = new Bullet(friendlyShip);
+								temp.setX(Float.valueOf(String.valueOf(ary.getJSONObject(i).getInt("x"))));
+								temp.setY(Float.valueOf(String.valueOf(ary.getJSONObject(i).getInt("y"))));
+								friendlyBullets.add(temp);
+							}
+						} catch (JSONException e) {
+							e.printStackTrace();
+						}
+					}
+				}
 			}
 		});
 	}
