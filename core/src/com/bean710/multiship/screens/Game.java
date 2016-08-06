@@ -33,6 +33,7 @@ public class Game implements Screen {
 	Texture playerShip;
 	Texture friendlyShip;
 	HashMap<String, Starship> friendlyPlayers;
+	HashMap<String, Starship> friendlyPlayers_last;
 	ArrayList<Bullet> bullets;
 	ArrayList<Bullet> friendlyBullets;
 
@@ -54,7 +55,9 @@ public class Game implements Screen {
 		playerShip = new Texture(Gdx.files.internal("playerShip2.png"));
 		friendlyShip = new Texture(Gdx.files.internal("playerShip.png"));
 		friendlyPlayers = new HashMap<String, Starship>();
+		friendlyPlayers_last = new HashMap<String, Starship>();
 		bullets = new ArrayList<Bullet>();
+		friendlyBullets = new ArrayList<Bullet>();
 		connectSocket();
 		configureSocketEvents();
 
@@ -117,11 +120,13 @@ public class Game implements Screen {
 			}
 			socket.emit("bulletUpdate", data);
 		}
-		
+
 		Iterator<Bullet> j = friendlyBullets.iterator();
-		while (j.hasNext()) {
-			Bullet bullet = j.next();
-			bullet.draw(batch);
+		if (!friendlyBullets.isEmpty()) {
+			while (j.hasNext()) {
+				Bullet bullet = j.next();
+				bullet.draw(batch);
+			}
 		}
 
 		if (player != null) {
@@ -143,7 +148,15 @@ public class Game implements Screen {
 		}
 
 		for (HashMap.Entry<String, Starship> entry : friendlyPlayers.entrySet()) {
-			entry.getValue().draw(batch);
+			if (friendlyPlayers_last.containsKey(entry.getKey())) {
+				Gdx.app.log("asdasd", "yasda");
+				friendlyPlayers_last.get(entry.getKey()).setPosition(
+						((entry.getValue().getX() - friendlyPlayers.get(entry.getKey()).getX()) / 20) + friendlyPlayers_last.get(entry.getKey()).getX(),
+						(entry.getValue().getY() - friendlyPlayers.get(entry.getKey()).getY()) / 100);
+				friendlyPlayers_last.get(entry.getKey()).draw(batch);
+			} else {
+				entry.getValue().draw(batch);
+			}
 		}
 
 		batch.end();
@@ -176,9 +189,9 @@ public class Game implements Screen {
 
 			public void call(Object... args) {
 				Gdx.app.log("SocketIO", "Connected to server");
-				
+
 				socket.emit("imagame");
-				
+
 				player = new Starship(playerShip);
 			}
 		}).on("socketID", new Emitter.Listener() {
@@ -275,6 +288,8 @@ public class Game implements Screen {
 
 			@Override
 			public void call(Object... args) {
+				friendlyPlayers_last = friendlyPlayers;
+				
 				JSONArray data = (JSONArray) args[0];
 				try {
 					// Gdx.app.log("fullUpdate", data.toString());
@@ -294,7 +309,7 @@ public class Game implements Screen {
 				}
 			}
 		}).on(("kickplayer"), new Emitter.Listener() {
-			
+
 			@Override
 			public void call(Object... args) {
 				String userid = (String) args[0];
@@ -303,32 +318,42 @@ public class Game implements Screen {
 				}
 			}
 		}).on(Socket.EVENT_DISCONNECT, new Emitter.Listener() {
-			
+
 			@Override
 			public void call(Object... args) {
 				game.setScreen(new MainMenu(game));
 			}
 		}).on("bulletRefresh", new Emitter.Listener() {
-			
+
 			@Override
 			public void call(Object... args) {
+				friendlyBullets.clear();
+
 				JSONObject obj = (JSONObject) args[0];
-				
+
+				Gdx.app.log("WHOOPS", obj + "");
+
 				Iterator<?> keys = obj.keys();
-				while(keys.hasNext()) {
-					JSONArray ary = (JSONArray) keys.next();
-					
-					for (int i = 0; i < ary.length(); i++) {
-						try {
-							if (!ary.getJSONObject(i).getString("sender").equals(id)) {
-								Bullet temp = new Bullet(friendlyShip);
-								temp.setX(Float.valueOf(String.valueOf(ary.getJSONObject(i).getInt("x"))));
-								temp.setY(Float.valueOf(String.valueOf(ary.getJSONObject(i).getInt("y"))));
-								friendlyBullets.add(temp);
+				while (keys.hasNext()) {
+					String key = (String) keys.next();
+
+					JSONArray ary;
+					try {
+						ary = obj.getJSONArray(key);
+						for (int i = 0; i < ary.length(); i++) {
+							try {
+								if (!ary.getJSONObject(i).getString("sender").equals(id)) {
+									Bullet temp = new Bullet(friendlyShip);
+									temp.setX(Float.valueOf(String.valueOf(ary.getJSONObject(i).getInt("x"))));
+									temp.setY(Float.valueOf(String.valueOf(ary.getJSONObject(i).getInt("y"))));
+									friendlyBullets.add(temp);
+								}
+							} catch (JSONException e) {
+								e.printStackTrace();
 							}
-						} catch (JSONException e) {
-							e.printStackTrace();
 						}
+					} catch (JSONException e1) {
+						e1.printStackTrace();
 					}
 				}
 			}
